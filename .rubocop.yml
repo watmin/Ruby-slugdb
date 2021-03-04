@@ -1,0 +1,16 @@
+AllCops:
+  TargetRubyVersion: 2.5
+  NewCops: enable
+
+Metrics/ClassLength:
+  Max: 150
+
+Metrics/MethodLength:
+  Max: 15
+
+Layout/LineLength:
+  Max: 120
+
+Metrics/BlockLength:
+  Exclude:
+    - '**/*_spec.rb'
