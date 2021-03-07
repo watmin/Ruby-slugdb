@@ -1,0 +1,159 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'bundler/setup'
+require 'benchmark'
+require 'slugdb'
+require 'pry'
+require 'tempfile'
+
+##
+# Factory to make benchmark inputs
+module BenchmarkFactory
+  module_function
+
+  def partitions(count, size)
+    Array.new(count) { |p| items("p#{p}#", size) }
+  end
+
+  def items(partition, size)
+    Array.new(size) do |x|
+      { pk: partition, sk: "s#{x}#", ipk: partition, isk: "s#{x}#" }
+    end
+  end
+end
+
+five_partitions = BenchmarkFactory.partitions(5, 1000)
+fifty_partitions = BenchmarkFactory.partitions(50, 100)
+five_hundred_partitions = BenchmarkFactory.partitions(500, 10)
+five_thousand_partitions = BenchmarkFactory.partitions(5000, 1)
+
+Benchmark.bmbm do |reporter| # rubocop:disable Metrics/BlockLength
+  reporter.report('put_item 5 partitions, 1000 items') do
+    Tempfile.create do |db_file|
+      db = SlugDB.new(db_file)
+      five_partitions.each do |partition|
+        partition.each { |item| db.put_item(**item) }
+      end
+    end
+  end
+
+  reporter.report('put_item 50 partitions, 100 items') do
+    Tempfile.create do |db_file|
+      db = SlugDB.new(db_file)
+      fifty_partitions.each do |partition|
+        partition.each { |item| db.put_item(**item) }
+      end
+    end
+  end
+
+  reporter.report('put_item 500 partitions, 10 items') do
+    Tempfile.create do |db_file|
+      db = SlugDB.new(db_file)
+      five_hundred_partitions.each do |partition|
+        partition.each { |item| db.put_item(**item) }
+      end
+    end
+  end
+
+  reporter.report('put_item 5000 partitions, 1 items') do
+    Tempfile.create do |db_file|
+      db = SlugDB.new(db_file)
+      five_thousand_partitions.each do |partition|
+        partition.each { |item| db.put_item(**item) }
+      end
+    end
+  end
+
+  reporter.report('2 indexes put_item 5 partitions, 1000 items') do
+    Tempfile.create do |db_file|
+      db = SlugDB.new(db_file)
+      db.add_index(name: :ski, pk: :sk, sk: :pk)
+      db.add_index(name: :i, pk: :ipk, sk: :isk)
+      five_partitions.each do |partition|
+        partition.each { |item| db.put_item(**item) }
+      end
+    end
+  end
+
+  reporter.report('2 indexes put_item 50 partitions, 100 items') do
+    Tempfile.create do |db_file|
+      db = SlugDB.new(db_file)
+      db.add_index(name: :ski, pk: :sk, sk: :pk)
+      db.add_index(name: :i, pk: :ipk, sk: :isk)
+      fifty_partitions.each do |partition|
+        partition.each { |item| db.put_item(**item) }
+      end
+    end
+  end
+
+  reporter.report('2 indexes put_item 500 partitions, 10 items') do
+    Tempfile.create do |db_file|
+      db = SlugDB.new(db_file)
+      db.add_index(name: :ski, pk: :sk, sk: :pk)
+      db.add_index(name: :i, pk: :ipk, sk: :isk)
+      five_hundred_partitions.each do |partition|
+        partition.each { |item| db.put_item(**item) }
+      end
+    end
+  end
+
+  reporter.report('2 indexes put_item 5000 partitions, 1 items') do
+    Tempfile.create do |db_file|
+      db = SlugDB.new(db_file)
+      db.add_index(name: :ski, pk: :sk, sk: :pk)
+      db.add_index(name: :i, pk: :ipk, sk: :isk)
+      five_thousand_partitions.each do |partition|
+        partition.each { |item| db.put_item(**item) }
+      end
+    end
+  end
+
+  reporter.report('put_item, get_item 5 partitions, 1000 items') do
+    Tempfile.create do |db_file|
+      db = SlugDB.new(db_file)
+      five_partitions.each do |partition|
+        partition.each { |item| db.put_item(**item) }
+      end
+      five_partitions.each do |partition| # rubocop:disable Style/CombinableLoops
+        partition.each { |item| db.get_item(**item) }
+      end
+    end
+  end
+
+  reporter.report('put_item, get_item 50 partitions, 100 items') do
+    Tempfile.create do |db_file|
+      db = SlugDB.new(db_file)
+      fifty_partitions.each do |partition|
+        partition.each { |item| db.put_item(**item) }
+      end
+      fifty_partitions.each do |partition| # rubocop:disable Style/CombinableLoops
+        partition.each { |item| db.get_item(**item) }
+      end
+    end
+  end
+
+  reporter.report('put_item, get_item 500 partitions, 10 items') do
+    Tempfile.create do |db_file|
+      db = SlugDB.new(db_file)
+      five_hundred_partitions.each do |partition|
+        partition.each { |item| db.put_item(**item) }
+      end
+      five_hundred_partitions.each do |partition| # rubocop:disable Style/CombinableLoops
+        partition.each { |item| db.get_item(**item) }
+      end
+    end
+  end
+
+  reporter.report('put_item, get_item 5000 partitions, 1 items') do
+    Tempfile.create do |db_file|
+      db = SlugDB.new(db_file)
+      five_thousand_partitions.each do |partition|
+        partition.each { |item| db.put_item(**item) }
+      end
+      five_thousand_partitions.each do |partition| # rubocop:disable Style/CombinableLoops
+        partition.each { |item| db.get_item(**item) }
+      end
+    end
+  end
+end

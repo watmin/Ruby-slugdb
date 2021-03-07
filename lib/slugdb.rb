@@ -36,7 +36,7 @@ class SlugDB
     end
     reindex!
 
-    { name: { pk: pk, sk: sk } }
+    { name => { pk: pk, sk: sk } }
   end
 
   def list_indexes
@@ -47,7 +47,7 @@ class SlugDB
     @pstore.transaction { |db| db[:main].keys }
   end
 
-  def get_item(pk:, sk:) # rubocop:disable Naming/MethodParameterName
+  def get_item(pk:, sk:, **_) # rubocop:disable Naming/MethodParameterName
     @pstore.transaction do |db|
       next if db[:main][pk].nil? || db[:main][pk][sk].nil?
 
@@ -56,41 +56,32 @@ class SlugDB
   end
 
   def put_item(pk:, sk:, **attributes) # rubocop:disable Naming/MethodParameterName
-    item = attributes.merge(pk: pk, sk: sk)
+    old_item = get_item(pk: pk, sk: sk)
+    new_item = attributes.merge(pk: pk, sk: sk)
     indexes = list_indexes
 
     @pstore.transaction do |db|
+      perform_delete(db, indexes, pk, sk, old_item)
+
       db[:main][pk] ||= {}
-      db[:main][pk][sk] = item
-      indexes.each { |name, schema| index_item(db, item, name, schema) }
+      db[:main][pk][sk] = new_item
+      indexes.each { |name, schema| index_item(db, new_item, name, schema) }
     end
 
-    item
+    new_item
   end
 
-  # rubocop:disable Naming/MethodParameterName,Metrics/AbcSize
+  # rubocop:disable Naming/MethodParameterName
   def delete_item(pk:, sk:, **_)
     item = get_item(pk: pk, sk: sk)
     return if item.nil?
 
     indexes = list_indexes
-    @pstore.transaction do |db|
-      db[:main][pk].delete(sk)
-      db[:main].delete(pk) if db[:main][pk].empty?
-
-      indexes.each do |name, schema|
-        next unless item.key?(schema[:pk]) && item.key?(schema[:sk])
-
-        db[name][item[schema[:pk]]][item[schema[:sk]]][item[:pk]].delete(item[:sk])
-        delete_if_empty?(db[name][item[schema[:pk]]][item[schema[:sk]]], item[:pk])
-        delete_if_empty?(db[name][item[schema[:pk]]], item[schema[:sk]])
-        delete_if_empty?(db[name], item[schema[:pk]])
-      end
-    end
+    @pstore.transaction { |db| perform_delete(db, indexes, pk, sk, item) }
 
     item
   end
-  # rubocop:enable Naming/MethodParameterName,Metrics/AbcSize
+  # rubocop:enable Naming/MethodParameterName
 
   # rubocop:disable Lint/UnusedBlockArgument,Naming/MethodParameterName
   # rubocop:disable Metrics/PerceivedComplexity,Metrics/MethodLength
@@ -134,6 +125,22 @@ class SlugDB
     db[name][item[schema[:pk]]][item[schema[:sk]]] ||= {}
     db[name][item[schema[:pk]]][item[schema[:sk]]][item[:pk]] ||= {}
     db[name][item[schema[:pk]]][item[schema[:sk]]][item[:pk]][item[:sk]] = item
+  end
+
+  def perform_delete(db, indexes, pk, sk, item) # rubocop:disable Naming/MethodParameterName,Metrics/AbcSize
+    return if item.nil?
+
+    db[:main][pk].delete(sk)
+    db[:main].delete(pk) if db[:main][pk].empty?
+
+    indexes.each do |name, schema|
+      next unless item.key?(schema[:pk]) && item.key?(schema[:sk])
+
+      db[name][item[schema[:pk]]][item[schema[:sk]]][item[:pk]].delete(item[:sk])
+      delete_if_empty?(db[name][item[schema[:pk]]][item[schema[:sk]]], item[:pk])
+      delete_if_empty?(db[name][item[schema[:pk]]], item[schema[:sk]])
+      delete_if_empty?(db[name], item[schema[:pk]])
+    end
   end
 
   def delete_if_empty?(hash, key)

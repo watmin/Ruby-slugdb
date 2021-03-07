@@ -1,6 +1,6 @@
 # SlugDB
 
-A completely Ruby, lightweight, zero dependency, NoSQL, file based databased.
+A completely native Ruby, lightweight, zero dependency, NoSQL, file based database.
 
 I wanted a tiny database for an embedded project that could follow the advanced data modelling techniques for NoSQL. This is basically a very slimmed down SQLite but for NoSQL without any C bindings.
 
@@ -646,6 +646,44 @@ sdb.query(
 #   :pk=>"ticket#1",
 #   :sk=>"2021-03-04T10:30:29Z"}]
 ```
+
+## Performance
+
+Using Ubuntu 20.04 on an i7-10710U with Ruby `3.0.0p0 (2020-12-25 revision 95aff21468) [x86_64-linux]` I got the following:
+
+```
+john@devbox:~/work/ruby-slugdb$ bundle exec bin/benchmark
+Rehearsal -------------------------------------------------------------------------------
+put_item 5 partitions, 1000 items           124.536929   0.864719 125.401648 (125.411962)
+put_item 50 partitions, 100 items           114.684999   0.332007 115.017006 (115.025352)
+put_item 500 partitions, 10 items           118.303101   0.288004 118.591105 (118.601603)
+put_item 5000 partitions, 1 items           160.530284   0.883942 161.414226 (161.427220)
+2 indexes put_item 5 partitions, 1000 items 251.300281   1.031866 252.332147 (252.364579)
+2 indexes put_item 50 partitions, 100 items 235.390541   0.963895 236.354436 (236.383481)
+2 indexes put_item 500 partitions, 10 items 241.453317   0.999958 242.453275 (242.479636)
+2 indexes put_item 5000 partitions, 1 items 310.027647   1.291865 311.319512 (311.353699)
+put_item, get_item 5 partitions, 1000 items 201.732843   0.499968 202.232811 (202.251035)
+put_item, get_item 50 partitions, 100 items 191.160082   0.427998 191.588080 (191.604090)
+put_item, get_item 500 partitions, 10 items 197.149766   0.419959 197.569725 (197.586483)
+put_item, get_item 5000 partitions, 1 items 266.727467   0.575973 267.303440 (267.323639)
+------------------------------------------------------------------- total: 2421.577411sec
+
+                                                  user     system      total        real
+put_item 5 partitions, 1000 items           120.888413   0.347965 121.236378 (121.245881)
+put_item 50 partitions, 100 items           113.471668   0.268009 113.739677 (113.747636)
+put_item 500 partitions, 10 items           117.166616   0.319974 117.486590 (117.492926)
+put_item 5000 partitions, 1 items           158.001298   0.427986 158.429284 (158.434901)
+2 indexes put_item 5 partitions, 1000 items 251.204792   0.719985 251.924777 (251.937582)
+2 indexes put_item 50 partitions, 100 items 235.023671   0.715972 235.739643 (235.755838)
+2 indexes put_item 500 partitions, 10 items 241.072163   0.575991 241.648154 (241.662752)
+2 indexes put_item 5000 partitions, 1 items 310.193882   1.339952 311.533834 (311.556014)
+put_item, get_item 5 partitions, 1000 items 201.417776   0.467966 201.885742 (201.898954)
+put_item, get_item 50 partitions, 100 items 190.772848   0.523983 191.296831 (191.308661)
+put_item, get_item 500 partitions, 10 items 197.940498   0.475973 198.416471 (198.428618)
+put_item, get_item 5000 partitions, 1 items 267.390145   0.715933 268.106078 (268.127310)
+```
+
+A key take away is that PStore kinda sucks with large data sets. My initial use case is hosting maybe a few hundred items. I wanted NoSQL funcitonality that didn't have a third part dep. Making this performant could be a thing but I'm not interested in that right now. PStore serializes the entire hash to disk on every write, keep that in mind.
 
 ## Development
 
